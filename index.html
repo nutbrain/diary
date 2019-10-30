@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <script src="https://cdn.bootcss.com/localforage/1.7.3/localforage.min.js"></script>
+    <script src="https://cdn.bootcss.com/lodash.js/4.17.15/lodash.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <title>Diary</title>
+    <style>
+        body{
+            font-family: "kaiti";
+            background-color: #e5d4c2;
+            background-size: cover;
+        }
+        h1{
+            text-align: center;
+            color:rgb(74, 238, 156);
+            text-shadow: 5px 5px 5px grey;
+        }
+        .addWord,.filter{
+           text-align: center;
+        }
+        .addWord>input,.filter>input{
+            border-radius: 6px;
+            height:30px;
+            margin:10px auto;
+        }
+        .addWord>input[type="button"]{
+            background: rgb(25, 209, 233)
+        }
+        .addWord>input[type="text"]{
+            width:70%;
+            font-size: 20px;
+        }
+        .content{
+            margin-top:50px;
+        }
+        .matter{
+            display: inline-block;
+            background-color: rgb(62, 139, 255);
+            margin:3px 5px;
+            padding:5px;
+            border-radius: 3px;
+            color:white;
+        }
+        .matter>button{
+            background:none;
+            border-style: none;
+            color:red;
+            font-size: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <h1>
+            {{title}}
+        </h1>
+        <div class="addWord">
+            <input type="text" class="keyword" v-model.trim="keyword"
+            @keydown.enter="handleAddKeyword"
+            >
+            <input type="button" value="添加记录"
+            @click="handleAddKeyword"
+            >
+        </div>
+        <div class="filter">
+            <input type="text" placeholder="请输入筛选关键字" v-model="filterword">
+        </div>
+        <div class="content">
+            <div class="day" v-for="(day,indexDay) in filteredDiary" :key="day.date">
+                <h3>{{day.date}}</h3>
+                <span class="matter" v-for="(matter,indexMatter) in day.matters" :key="day.date+indexMatter">
+                    {{indexMatter+1}}.{{matter}}
+                    <button @click="handleDeleteMatter(indexDay,indexMatter)">x</button>
+                </span>
+            </div>
+        </div>
+    </div>
+    <script>
+        const vm = new Vue({
+            el:"#app",
+            data:{
+                title:"一句话日记",
+                keyword:"",
+                diary:[],
+                filterword:"",
+            },
+            created:function(){
+                localforage.getItem('diary',function(err,data){
+                    this.diary=data || [];
+                }.bind(this))
+            },
+            watch:{
+                diary:{
+                    handler:function(val,oldval){
+                        localforage.setItem('diary',val,function(err){
+                            err && console.log(err)
+                        })
+                    },
+                    deep:true,
+                }
+            },
+            computed:{
+                filteredDiary:function(){
+                    let reg=new RegExp(this.filterword,"i");
+                    let filteredDiary=this.diary.filter(function(day,index){
+                        let reserve=reg.test(day.date);
+                        reserve=reserve || day.matters.some(function(matter,indexMatter){
+                            return reg.test(matter);
+                        })
+                        return reserve;
+                    });
+                    return filteredDiary;
+                }
+            },
+            methods:{
+                handleAddKeyword(){
+                    if (this.keyword) {
+                        let index=_.findIndex(this.diary,['date',new Date().toLocaleDateString()]);
+                        if (index==-1) {
+                            this.diary.unshift({
+                                date:new Date().toLocaleDateString(),
+                                matters:[],
+                            });
+                            index=_.findIndex(this.diary,['date',new Date().toLocaleDateString()]);
+                        }
+                        this.diary[index].matters.push(this.keyword);
+                        this.keyword="";
+                    }
+                },
+                handleDeleteMatter(indexDay,indexMatter){
+                    let sure=confirm("确定要删除"+this.diary[indexDay].date+"的"+this.diary[indexDay].matters[indexMatter]+"吗？");
+                    sure && this.diary[indexDay].matters.splice(indexMatter,1);
+                    if (!this.diary[indexDay].matters.length){
+                        this.diary.splice(indexDay,1);
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
